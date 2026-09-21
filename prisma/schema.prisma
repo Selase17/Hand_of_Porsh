@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MenuCategory {
+  mains
+  pastries
+  snacks
+}
+
+model MenuItem {
+  id          String       @id @default(cuid())
+  name        String
+  description String
+  // GHS, stored as integer pesewas (GHS x 100) — see CLAUDE.md currency convention
+  price       Int
+  category    MenuCategory
+  imageUrl    String       @map("image_url")
+  inStock     Boolean      @default(true) @map("in_stock")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  orderItems  OrderItem[]
+
+  @@map("menu_items")
+}
+
+// What the customer chose at checkout. The actual Paystack channel used
+// (card vs mobile money) is only known once payment is confirmed — see
+// Order.paymentChannel.
+enum PaymentMethod {
+  paystack
+  cash
+}
+
+enum PaymentStatus {
+  pending // Paystack order awaiting payment confirmation
+  paid
+  failed
+  cod_pending // "Pending — pay on delivery"
+}
+
+enum OrderStatus {
+  received
+  preparing
+  out_for_delivery
+  delivered
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  // Public order number, also used as the Paystack transaction reference
+  ref             String        @unique
+  customerName    String        @map("customer_name")
+  phone           String
+  email           String?
+  deliveryAddress String        @map("delivery_address")
+  paymentMethod   PaymentMethod @map("payment_method")
+  // "card" | "mobile_money", filled in from Paystack's response once paid
+  paymentChannel  String?       @map("payment_channel")
+  paymentStatus   PaymentStatus @map("payment_status")
+  status          OrderStatus   @default(received)
+  // GHS, stored as integer pesewas
+  totalPrice      Int           @map("total_price")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  items           OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String   @map("order_id")
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String   @map("menu_item_id")
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  // Snapshot of the item name/price at order time — survives later menu edits
+  name       String
+  quantity   Int
+  priceAtOrder Int    @map("price_at_order")
+
+  @@map("order_items")
+}
