@@ -175,6 +175,31 @@ Prisma is pinned to the stable v6 line (not the v7/v8 pre-release train, which
 requires driver adapters and a separate `prisma.config.ts`) to keep the setup
 simple. Revisit this pin deliberately if upgrading later.
 
+## Docker
+
+- `Dockerfile` is a 3-stage build (`deps` → `builder` → `runner`) producing a
+  minimal image from Next.js's `output: "standalone"` (`next.config.ts`).
+  `node:24-alpine` throughout, matching the local dev Node version so
+  Prisma's native query engine binary built in `builder` matches `runner`.
+- The standalone output's dependency tracing doesn't reliably catch Prisma's
+  generated client + native engine binary, so the runner stage copies
+  `node_modules/.prisma` and `node_modules/@prisma/client` explicitly — a
+  known gap, not a hypothetical one (the build fails at runtime without it).
+- `/menu`, `/admin`, and `/order/[ref]` are `export const dynamic = "force-dynamic"`.
+  They always need live DB state anyway, but the immediate reason is that
+  `next build` would otherwise try to statically prerender them and fail —
+  there's no `DATABASE_URL` at build time, deliberately, since secrets don't
+  belong in the image.
+- The image does **not** run migrations on startup. Run
+  `npx prisma migrate deploy` as its own step before starting a new version
+  (CI/CD job, or manually) — baking it into container startup causes problems
+  once there's more than one instance.
+- Runtime config (`DATABASE_URL`, `PAYSTACK_SECRET_KEY`, `ADMIN_PASSWORD`) is
+  injected via `docker run -e` / `--env-file`, never baked into the image.
+- Local build/run check: `docker build -t hand-of-porsh .`, then
+  `docker run --network hand_of_porsh_default -e DATABASE_URL=... -p 3000:3000 hand-of-porsh`
+  (join the compose network so it can reach the `db` service by name).
+
 Local Postgres runs on host port **5433**, not 5432 — chosen to avoid clashing
 with a native Postgres install some machines already have listening on 5432.
 

@@ -9,6 +9,10 @@ const CATEGORY_LABELS = {
 
 const CATEGORY_ORDER = ["mains", "pastries", "snacks"] as const;
 
+// Always reflects live stock/prices — never statically prerendered (also
+// avoids needing a DATABASE_URL at `next build` time).
+export const dynamic = "force-dynamic";
+
 export default async function MenuPage() {
   const menuItems = await prisma.menuItem.findMany({
     orderBy: { name: "asc" },

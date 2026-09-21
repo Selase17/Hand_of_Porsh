@@ -2,6 +2,10 @@ import { prisma } from "@/lib/db";
 import { OrderRow, type AdminOrder } from "@/components/admin/OrderRow";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 
+// Always reflects live order state — never statically prerendered (also
+// avoids needing a DATABASE_URL at `next build` time).
+export const dynamic = "force-dynamic";
+
 export default async function AdminOrdersPage() {
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },

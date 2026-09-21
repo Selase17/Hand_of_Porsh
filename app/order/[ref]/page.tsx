@@ -8,6 +8,10 @@ import {
 } from "@/lib/orderDisplay";
 import { VerifyOnLoad } from "@/components/order/VerifyOnLoad";
 
+// Always reflects live order/payment state — never statically prerendered
+// (also avoids needing a DATABASE_URL at `next build` time).
+export const dynamic = "force-dynamic";
+
 export default async function OrderConfirmationPage({
   params,
   searchParams,
